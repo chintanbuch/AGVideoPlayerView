@@ -57,7 +57,7 @@ class AGVideoPlayerView: UIView {
         didSet {
             if oldValue == shouldSwitchToFullscreen { return }
             if shouldSwitchToFullscreen {
-                NotificationCenter.default.addObserver(self, selector: #selector(deviceOrientationDidChange(_:)), name: .UIDeviceOrientationDidChange, object: nil)
+                NotificationCenter.default.addObserver(self, selector: #selector(deviceOrientationDidChange(_:)), name: UIDevice.orientationDidChangeNotification, object: nil)
             } else {
                 NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: nil)
             }
@@ -177,7 +177,7 @@ extension AGVideoPlayerView {
         } else {
             displayLink?.frameInterval = 5
         }
-        displayLink?.add(to: RunLoop.current, forMode: .commonModes)
+        displayLink?.add(to: RunLoop.current, forMode: RunLoop.Mode.common)
     }
     
     fileprivate func removeTimer() {
@@ -240,11 +240,17 @@ extension AGVideoPlayerView {
     fileprivate func play() {
         if isPlaying { return }
         isPlaying = true
-        videoAsset?.loadValuesAsynchronously(forKeys: ["playable", "tracks", "duration"], completionHandler: { [weak self] _ in
+        videoAsset?.loadValuesAsynchronously(forKeys: ["playable", "tracks", "duration"], completionHandler: { [weak self] in
             DispatchQueue.main.async {
                 if self?.isPlaying == true {
                     self?.playIcon.isHidden = true
-                    self?.previewImageView.isHidden = true
+                    if let booleanValue = self?.isVideoAvailable(), booleanValue {
+                        // if video, hide image
+                        self?.previewImageView.isHidden = true
+                    } else {
+                        // if audio, then don't hide image
+                        self?.previewImageView.isHidden = false
+                    }
                     self?.playerController.player?.play()
                 }
             }
@@ -261,7 +267,7 @@ extension AGVideoPlayerView {
     
     @objc fileprivate func itemDidFinishPlaying() {
         if isPlaying {
-            playerController.player?.seek(to: kCMTimeZero, toleranceBefore: kCMTimeZero, toleranceAfter: kCMTimeZero)
+            playerController.player?.seek(to: CMTime.zero, toleranceBefore: CMTime.zero, toleranceAfter: CMTime.zero)
             playerController.player?.play()
         }
     }
@@ -279,10 +285,22 @@ extension AGVideoPlayerView {
         playerController.contentOverlayView?.removeObserver(self, forKeyPath: "bounds")
     }
     
+    func isAudioAvailable() -> Bool {
+        let isAudioIn = self.playerController.player?.currentItem?.asset.tracks.filter({$0.mediaType == AVMediaType.audio}).count
+        return (isAudioIn != 0)
+    }
+    
+    func isVideoAvailable() -> Bool {
+       let isVideoIn = self.playerController.player?.currentItem?.asset.tracks.filter({$0.mediaType == AVMediaType.video}).count
+       return (isVideoIn != 0)
+    }
+
+    
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
         switch keyPath! {
         case "rate":
-            self.previewImageView.isHidden = true
+//            self.previewImageView.isHidden = true
+            self.previewImageView.isHidden = self.isVideoAvailable()
         case "bounds":
             let fullscreen = playerController.contentOverlayView?.bounds == UIScreen.main.bounds
             if isFullscreen != fullscreen {
@@ -312,6 +330,7 @@ extension AGVideoPlayerView {
         })
     }
 }
+
 
 //MARK: AVPlayerViewController extension for force fullscreen mode
 extension AVPlayerViewController {

@@ -14,14 +14,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
     var shouldAutorotate = false
 
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
         NotificationCenter.default.addObserver(self, selector: #selector(playerDidChangeFullscreenMode), name: .playerDidChangeFullscreenMode, object: nil)
         
         return true
     }
     
-    func playerDidChangeFullscreenMode(_ notification: Notification) {
+    @objc func playerDidChangeFullscreenMode(_ notification: Notification) {
         guard let isFullscreen = notification.object as? Bool else {
             return
         }
